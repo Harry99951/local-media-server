@@ -2,8 +2,8 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-// 🔑 REPLACE THIS WITH YOUR OMDB API KEY
-const OMDB_API_KEY = '25831cdb'; 
+//  REPLACE THIS WITH YOUR OMDB API KEY
+const OMDB_API_KEY = process.env.TMDb_API_KEY; 
 
 const MEDIA_DIR = path.join(__dirname, 'media');
 
