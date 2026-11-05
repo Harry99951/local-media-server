@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeNet</title>
+  <style>
+    :root {
+      --sub-size: 1.4rem;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #141414;
+      color: #fff;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      padding: 20px;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+    }
+    header h1 { color: #E50914; font-size: 2.2rem; }
+    
+    .current-profile-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #222;
+      border: 1px solid #333;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #fff;
+      font-weight: bold;
+    }
+    .current-profile-btn img { width: 28px; height: 28px; border-radius: 4px; object-fit: cover; }
+
+    #statusMessage { margin-bottom: 20px; color: #aaa; }
+
+    .movie-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 20px;
+    }
+    .movie-card {
+      background: #1f1f1f;
+      border-radius: 6px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 1px solid #2a2a2a;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .movie-card:hover { transform: scale(1.04); border-color: #E50914; }
+    .poster-wrapper { position: relative; height: 290px; background: #2a2a2a; }
+    .movie-card img { width: 100%; height: 100%; object-fit: cover; }
+    .badge {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(0,0,0,0.8); color: #f3ce13;
+      padding: 4px 8px; border-radius: 4px;
+      font-size: 0.8rem; font-weight: bold;
+    }
+    .progress-bar-container {
+      position: absolute; bottom: 0; left: 0; width: 100%;
+      height: 4px; background: rgba(255, 255, 255, 0.2);
+    }
+    .progress-bar-fill { height: 100%; background: #E50914; width: 0%; }
+    .card-info { padding: 12px; display: flex; flex-direction: column; gap: 6px; flex-grow: 1; }
+    .card-title { font-size: 1rem; font-weight: bold; }
+    .card-meta { font-size: 0.8rem; color: #888; }
+    
+    /* Profile Overlay */
+    .profile-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: #141414;
+      z-index: 2000;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .profile-overlay.active { display: flex; }
+    .profile-overlay h2 { font-size: 3rem; margin-bottom: 30px; font-weight: 400; }
+    .profile-list { display: flex; gap: 30px; flex-wrap: wrap; justify-content: center; }
+    .profile-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      gap: 12px;
+      position: relative;
+    }
+    .profile-avatar-wrapper { position: relative; }
+    .profile-avatar {
+      width: 110px; height: 110px;
+      border-radius: 8px;
+      border: 3px solid transparent;
+      object-fit: cover;
+      transition: transform 0.2s, border-color 0.2s, filter 0.2s;
+    }
+    .edit-overlay-btn, .delete-overlay-btn {
+      display: none;
+      position: absolute;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: none;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      align-items: center; justify-content: center;
+      z-index: 10;
+    }
+    .edit-overlay-btn { top: 5px; right: 5px; background: rgba(0,0,0,0.8); }
+    .delete-overlay-btn { top: 5px; left: 5px; background: #E50914; }
+    
+    .is-editing .edit-overlay-btn,
+    .is-editing .delete-overlay-btn { display: flex; }
+    .is-editing .profile-avatar { filter: brightness(0.6); }
+
+    .add-avatar-btn {
+      width: 110px; height: 110px;
+      border-radius: 8px;
+      border: 2px dashed #555;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      color: #777;
+    }
+    .profile-card:hover .profile-avatar { transform: scale(1.05); border-color: #fff; }
+    .profile-card:hover .add-avatar-btn { border-color: #fff; color: #fff; background: #222; }
+    .profile-card span { font-size: 1.1rem; color: #888; }
+    .profile-card:hover span { color: #fff; }
+
+    .manage-profiles-btn {
+      margin-top: 40px;
+      padding: 10px 24px;
+      background: transparent;
+      border: 1px solid #777;
+      color: #777;
+      font-size: 1.1rem;
+      letter-spacing: 1px;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .manage-profiles-btn:hover { border-color: #fff; color: #fff; }
+
+    /* Modals */
+    .create-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+    }
+    .create-modal.active { display: flex; }
+    .create-box {
+      background: #181818;
+      padding: 30px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .create-box h3 { font-size: 1.5rem; }
+    .create-box label { font-size: 0.85rem; color: #aaa; margin-bottom: -8px; }
+    .create-box input[type="text"], .create-box input[type="file"] {
+      padding: 10px;
+      background: #222;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #fff;
+      outline: none;
+    }
+    .create-box input:focus { border-color: #E50914; }
+    .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+    .btn { flex: 1; padding: 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn-primary { background: #E50914; color: #fff; }
+    .btn-secondary { background: #333; color: #ccc; }
+
+    /* Video Player Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.92);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal.active { display: flex; }
+    .modal-content {
+      width: 90%;
+      max-width: 900px;
+      background: #181818;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    /* Subtitle Styling Controls Bar */
+    .subtitle-controls {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 10px 15px;
+      background: #111;
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+    .subtitle-controls select {
+      background: #222;
+      color: #fff;
+      border: 1px solid #444;
+      padding: 4px 8px;
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+      outline: none;
+    }
+    
+    /* CSS Custom Property for Dynamic Subtitle Size */
+    video::cue {
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      font-size: var(--sub-size);
+    }
+
+    /* ===== Custom Netflix-style Player Controls =====
+       Fixed 16:9 frame (like Netflix's own player chrome) so the
+       control bar always sits flush under the picture, regardless
+       of the source video's native aspect ratio. object-fit:contain
+       on the <video> above handles letterboxing/pillarboxing inside
+       this fixed box instead of leaving a stray gap below it. */
+    .player-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      max-height: 500px;
+      background: #000;
+      cursor: pointer;
+      user-select: none;
+    }
+    .player-wrapper.controls-hidden { cursor: none; }
+    .player-wrapper.controls-hidden .custom-controls { opacity: 0; pointer-events: none; }
+
+    /* Big center play/pause button, flashes briefly on toggle */
+    .center-play-btn {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.85);
+      width: 74px; height: 74px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 5;
+    }
+    .center-play-btn.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    /* Skip +/-10s flash feedback on double-click/tap zones */
+    .skip-flash {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 90px; height: 90px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      font-size: 0.85rem;
+      font-weight: bold;
+      gap: 2px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 5;
+    }
+    .skip-flash-left { left: 12%; }
+    .skip-flash-right { right: 12%; }
+    .skip-flash.flash { opacity: 1; transition: opacity 0.05s ease; }
+
+    .custom-controls {
+      position: absolute;
+      bottom: 0; left: 0; width: 100%;
+      background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 60%, transparent 100%);
+      padding: 22px 16px 10px;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+      z-index: 6;
+    }
+
+    .progress-row { padding: 0 2px 8px; }
+    .seek-bar {
+      position: relative;
+      width: 100%;
+      height: 5px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .seek-bar:hover { height: 7px; }
+    .seek-buffered {
+      position: absolute; top: 0; left: 0; height: 100%;
+      background: rgba(255,255,255,0.35);
+      border-radius: 3px;
+      width: 0%;
+    }
+    .seek-fill {
+      position: absolute; top: 0; left: 0; height: 100%;
+      background: #E50914;
+      border-radius: 3px;
+      width: 0%;
+    }
+    .seek-handle {
+      position: absolute; top: 50%; left: 0%;
+      width: 13px; height: 13px;
+      background: #E50914;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 4px rgba(0,0,0,0.6);
+    }
+
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .controls-left, .controls-right {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .ctrl-btn {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1.15rem;
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      opacity: 0.9;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+    .ctrl-btn:hover { opacity: 1; transform: scale(1.12); }
+    #rewindBtn, #forwardBtn { font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
+
+    .volume-group { display: flex; align-items: center; gap: 6px; }
+    .volume-group input[type="range"] {
+      width: 80px;
+      accent-color: #E50914;
+      cursor: pointer;
+    }
+
+    .time-display {
+      color: #ddd;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      margin-left: 4px;
+    }
+
+    .modal-details { padding: 20px; }
+    .modal-details h2 { margin-bottom: 8px; color: #fff; }
+    .modal-details .meta-line { display: flex; gap: 15px; color: #aaa; font-size: 0.9rem; margin-bottom: 12px; }
+    .rating { color: #f3ce13; font-weight: bold; }
+    .plot { font-size: 0.95rem; color: #ddd; line-height: 1.4; }
+    .close-btn {
+      position: absolute; top: 10px; right: 15px; color: white;
+      font-size: 2rem; cursor: pointer; background: rgba(0,0,0,0.5);
+      border: none; width: 40px; height: 40px; border-radius: 50%; z-index: 10;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Profile Picker Overlay -->
+  <div class="profile-overlay" id="profileOverlay">
+    <h2>Wait a min... Who are you?</h2>
+    <div class="profile-list" id="profileList"></div>
+    <button class="manage-profiles-btn" id="manageProfilesBtn" onclick="toggleManageProfiles()">Manage Profiles</button>
+  </div>
+
+  <!-- Create / Edit Profile Modal -->
+  <div class="create-modal" id="createModal">
+    <div class="create-box">
+      <h3 id="modalTitle">Add Profile</h3>
+      <input type="hidden" id="editProfileId">
+      
+      <label>Profile Name</label>
+      <input type="text" id="newProfileName" placeholder="Profile Name">
+
+      <label>Upload Image File (Local PC)</label>
+      <input type="file" id="newProfileFile" accept="image/*">
+
+      <label>OR Image URL</label>
+      <input type="text" id="newProfileAvatar" placeholder="https://example.com/avatar.jpg">
+
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="submitProfileForm()">Save</button>
+        <button class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <h1>MeNet</h1>
+    <button class="current-profile-btn" onclick="showProfilePicker()">
+      <img id="currentAvatar" src="" alt="Avatar">
+      <span id="currentName">User</span>
+    </button>
+  </header>
+
+  <div id="statusMessage">Scanning library...</div>
+  <main class="movie-grid" id="movieGrid"></main>
+
+  <!-- Video Player Modal -->
+  <div class="modal" id="videoModal">
+    <div class="modal-content">
+      <button class="close-btn" onclick="closePlayer()">&times;</button>
+      
+      <!-- Subtitle Size Controls Header -->
+      <div class="subtitle-controls">
+        <span>💬 Subtitle Size:</span>
+        <select id="subSizeSelect" onchange="changeSubtitleSize(this.value)">
+          <option value="1rem">Small</option>
+          <option value="1.4rem" selected>Medium</option>
+          <option value="1.8rem">Large</option>
+          <option value="2.4rem">Extra Large</option>
+        </select>
+      </div>
+
+      <div class="player-wrapper" id="playerWrapper">
+        <video id="player" autoplay></video>
+
+        <div class="skip-flash skip-flash-left" id="skipFlashLeft">⏪<span>10s</span></div>
+        <div class="skip-flash skip-flash-right" id="skipFlashRight">⏩<span>10s</span></div>
+
+        <div class="center-play-btn" id="centerPlayBtn">▶</div>
+
+        <div class="custom-controls" id="customControls">
+          <div class="progress-row">
+            <div class="seek-bar" id="seekBar">
+              <div class="seek-buffered" id="seekBuffered"></div>
+              <div class="seek-fill" id="seekFill"></div>
+              <div class="seek-handle" id="seekHandle"></div>
+            </div>
+          </div>
+          <div class="controls-row">
+            <div class="controls-left">
+              <button class="ctrl-btn" id="playPauseBtn" title="Play/Pause (Space)">▶</button>
+              <button class="ctrl-btn" id="rewindBtn" title="Back 10s (←)">⏪ 10</button>
+              <button class="ctrl-btn" id="forwardBtn" title="Forward 10s (→)">10 ⏩</button>
+              <div class="volume-group">
+                <button class="ctrl-btn" id="muteBtn" title="Mute (M)">🔊</button>
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1">
+              </div>
+              <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+            </div>
+            <div class="controls-right">
+              <button class="ctrl-btn" id="fullscreenBtn" title="Fullscreen (F)">⛶</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-details">
+        <h2 id="mTitle">Movie Title</h2>
+        <div class="meta-line">
+          <span class="rating" id="mRating">★ 8.8</span>
+          <span id="mYear">2010</span>
+          <span id="mGenre">Sci-Fi</span>
+        </div>
+        <p class="plot" id="mPlot">Movie plot...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let profilesData = [];
+    let currentProfile = JSON.parse(localStorage.getItem('activeProfile')) || null;
+    let moviesData = [];
+    let currentMovieId = null;
+    let lastSavedTime = 0;
+    let isEditingProfiles = false;
+
+    const movieGrid = document.getElementById('movieGrid');
+    const statusMessage = document.getElementById('statusMessage');
+    const videoModal = document.getElementById('videoModal');
+    const player = document.getElementById('player');
+    const profileOverlay = document.getElementById('profileOverlay');
+
+    function changeSubtitleSize(size) {
+      document.documentElement.style.setProperty('--sub-size', size);
+    }
+
+    async function fetchProfiles() {
+      try {
+        const res = await fetch('/api/profiles');
+        profilesData = await res.json();
+        renderProfilePicker();
+      } catch (err) {
+        console.error('Failed to load profiles:', err);
+      }
+    }
+
+    function toggleManageProfiles() {
+      isEditingProfiles = !isEditingProfiles;
+      const btn = document.getElementById('manageProfilesBtn');
+      btn.innerText = isEditingProfiles ? 'Done' : 'Manage Profiles';
+      renderProfilePicker();
+    }
+
+    function renderProfilePicker() {
+      const profileList = document.getElementById('profileList');
+      let html = profilesData.map(p => `
+        <div class="profile-card ${isEditingProfiles ? 'is-editing' : ''}" onclick="onProfileClick('${p.id}')">
+          <div class="profile-avatar-wrapper">
+            <button class="edit-overlay-btn" onclick="openEditModal(event, '${p.id}')">✏️</button>
+            <button class="delete-overlay-btn" onclick="deleteProfile(event, '${p.id}')">✕</button>
+            <img class="profile-avatar" src="${p.avatar}" alt="${p.name}">
+          </div>
+          <span>${p.name}</span>
+        </div>
+      `).join('');
+
+      if (!isEditingProfiles) {
+        html += `
+          <div class="profile-card" onclick="openCreateModal()">
+            <div class="add-avatar-btn">+</div>
+            <span>Add Profile</span>
+          </div>
+        `;
+      }
+
+      profileList.innerHTML = html;
+    }
+
+    function onProfileClick(profileId) {
+      if (isEditingProfiles) return;
+      selectProfile(profileId);
+    }
+
+    function showProfilePicker() {
+      fetchProfiles();
+      profileOverlay.classList.add('active');
+    }
+
+    function selectProfile(profileId) {
+      currentProfile = profilesData.find(p => p.id === profileId);
+      localStorage.setItem('activeProfile', JSON.stringify(currentProfile));
+      
+      document.getElementById('currentAvatar').src = currentProfile.avatar;
+      document.getElementById('currentName').innerText = currentProfile.name;
+      
+      profileOverlay.classList.remove('active');
+      loadMovies();
+    }
+
+    function openCreateModal() {
+      document.getElementById('modalTitle').innerText = 'Add Profile';
+      document.getElementById('editProfileId').value = '';
+      document.getElementById('newProfileName').value = '';
+      document.getElementById('newProfileAvatar').value = '';
+      document.getElementById('newProfileFile').value = '';
+      document.getElementById('createModal').classList.add('active');
+    }
+
+    function openEditModal(event, profileId) {
+      event.stopPropagation();
+      const p = profilesData.find(item => item.id === profileId);
+      if (!p) return;
+
+      document.getElementById('modalTitle').innerText = 'Edit Profile';
+      document.getElementById('editProfileId').value = p.id;
+      document.getElementById('newProfileName').value = p.name;
+      document.getElementById('newProfileAvatar').value = p.avatar.startsWith('/uploads') ? '' : p.avatar;
+      document.getElementById('newProfileFile').value = '';
+      document.getElementById('createModal').classList.add('active');
+    }
+
+    function closeCreateModal() {
+      document.getElementById('createModal').classList.remove('active');
+    }
+
+    async function submitProfileForm() {
+      const editId = document.getElementById('editProfileId').value;
+      const name = document.getElementById('newProfileName').value.trim();
+      const avatarUrl = document.getElementById('newProfileAvatar').value.trim();
+      const avatarFile = document.getElementById('newProfileFile').files[0];
+
+      if (!name) return alert('Please enter a profile name');
+
+      const formData = new FormData();
+      formData.append('name', name);
+      if (avatarUrl) formData.append('avatarUrl', avatarUrl);
+      if (avatarFile) formData.append('avatarFile', avatarFile);
+
+      const url = editId ? `/api/profiles/${editId}` : '/api/profiles';
+      const method = editId ? 'PUT' : 'POST';
+
+      try {
+        const res = await fetch(url, { method, body: formData });
+        const data = await res.json();
+
+        if (data.success) {
+          closeCreateModal();
+          await fetchProfiles();
+          if (!editId) selectProfile(data.profile.id);
+        } else {
+          alert(data.error || 'Operation failed');
+        }
+      } catch (err) {
+        alert('Failed to save profile');
+      }
+    }
+
+    async function deleteProfile(event, profileId) {
+      event.stopPropagation();
+      if (!confirm('Are you sure you want to delete this profile?')) return;
+
+      try {
+        const res = await fetch(`/api/profiles/${profileId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          if (currentProfile && currentProfile.id === profileId) {
+            localStorage.rmItem('activeProfile');
+            currentProfile = null;
+          }
+          await fetchProfiles();
+        } else {
+          alert(data.error || 'Failed to delete profile');
+        }
+      } catch (err) {
+        alert('Failed to delete profile');
+      }
+    }
+
+    async function loadMovies() {
+      if (!currentProfile) {
+        showProfilePicker();
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/movies?profile=${currentProfile.id}`);
+        moviesData = await response.json();
+
+        if (moviesData.length === 0) {
+          statusMessage.innerText = '📁 No .mp4 files found in /media. Add videos and refresh!';
+          return;
+        }
+
+        statusMessage.innerText = `${currentProfile.name}'s Library: ${moviesData.length} movie(s)`;
+
+        movieGrid.innerHTML = moviesData.map((movie, index) => {
+          const progressPercent = movie.savedProgress ? Math.min(100, Math.round((movie.savedProgress / 7200) * 100)) : 0;
+
+          return `
+            <div class="movie-card" onclick="openPlayer(${index})">
+              <div class="poster-wrapper">
+                ${movie.posterUrl 
+                  ? `<img src="${movie.posterUrl}" alt="${movie.title}">`
+                  : `<div class="placeholder">🎬</div>`
+                }
+                ${movie.rating !== 'N/A' ? `<div class="badge">★ ${movie.rating}</div>` : ''}
+                
+                <div class="progress-bar-container">
+                  <div class="progress-bar-fill" style="width: ${progressPercent}%;"></div>
+                </div>
+              </div>
+              <div class="card-info">
+                <div class="card-title">${movie.title}</div>
+                <div class="card-meta">${movie.year} • ${movie.genre}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Error fetching movies:', err);
+        statusMessage.innerText = '❌ Failed to connect to server.';
+      }
+    }
+
+    async function openPlayer(index) {
+      const movie = moviesData[index];
+      currentMovieId = movie.id;
+      
+      player.innerHTML = '';
+      player.src = movie.videoUrl;
+
+      if (movie.subtitles && movie.subtitles.length > 0) {
+        movie.subtitles.forEach((sub, i) => {
+          const track = document.createElement('track');
+          track.kind = 'subtitles';
+          track.label = sub.label;
+          track.srclang = sub.srclang;
+          track.src = sub.src;
+          if (i === 0) track.default = true;
+          player.appendChild(track);
+        });
+      }
+
+      document.getElementById('mTitle').innerText = movie.title;
+      document.getElementById('mRating').innerText = movie.rating !== 'N/A' ? `★ ${movie.rating}` : '';
+      document.getElementById('mYear').innerText = movie.year;
+      document.getElementById('mGenre').innerText = movie.genre;
+      document.getElementById('mPlot').innerText = movie.plot;
+
+      videoModal.classList.add('active');
+
+      // Reset custom control UI for the new movie
+      playerWrapper.classList.remove('controls-hidden');
+      playPauseBtn.innerText = '▶';
+      seekFill.style.width = '0%';
+      seekHandle.style.left = '0%';
+      seekBuffered.style.width = '0%';
+      timeDisplay.innerText = '0:00 / 0:00';
+      volumeSlider.value = player.volume;
+      muteBtn.innerText = player.muted ? '🔇' : '🔊';
+
+      try {
+        const res = await fetch(`/api/progress/${currentProfile.id}/${currentMovieId}`);
+        const data = await res.json();
+        
+        if (data.timestamp && data.timestamp > 5) {
+          player.addEventListener('loadedmetadata', function onMeta() {
+            player.currentTime = data.timestamp;
+            player.removeEventListener('loadedmetadata', onMeta);
+          });
+        }
+      } catch (e) {
+        console.warn('Could not restore playback position');
+      }
+    }
+
+    function closePlayer() {
+      if (currentMovieId) {
+        saveProgress(currentMovieId, player.currentTime, player.duration);
+      }
+      player.pause();
+      player.src = '';
+      currentMovieId = null;
+      clearTimeout(hideControlsTimer);
+      videoModal.classList.remove('active');
+      loadMovies();
+    }
+
+    async function saveProgress(movieId, timestamp, duration) {
+      if (!movieId || !currentProfile) return;
+      try {
+        await fetch('/api/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ profileId: currentProfile.id, movieId, timestamp, duration })
+        });
+      } catch (err) {
+        console.error('Failed to save progress:', err);
+      }
+    }
+
+    player.addEventListener('timeupdate', () => {
+      const currentTime = Math.floor(player.currentTime);
+      if (currentMovieId && currentTime - lastSavedTime >= 5) {
+        lastSavedTime = currentTime;
+        saveProgress(currentMovieId, player.currentTime, player.duration);
+      }
+    });
+
+    player.addEventListener('pause', () => {
+      if (currentMovieId && player.currentTime > 0) {
+        saveProgress(currentMovieId, player.currentTime, player.duration);
+      }
+    });
+
+    /* ===================================================
+       Custom Netflix-style Player Controls
+    =================================================== */
+    const playerWrapper = document.getElementById('playerWrapper');
+    const customControls = document.getElementById('customControls');
+    const centerPlayBtn = document.getElementById('centerPlayBtn');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const rewindBtn = document.getElementById('rewindBtn');
+    const forwardBtn = document.getElementById('forwardBtn');
+    const seekBar = document.getElementById('seekBar');
+    const seekFill = document.getElementById('seekFill');
+    const seekBuffered = document.getElementById('seekBuffered');
+    const seekHandle = document.getElementById('seekHandle');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const muteBtn = document.getElementById('muteBtn');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const skipFlashLeft = document.getElementById('skipFlashLeft');
+    const skipFlashRight = document.getElementById('skipFlashRight');
+
+    const SKIP_SECONDS = 10;
+    let hideControlsTimer = null;
+    let isSeeking = false;
+
+    function formatTime(sec) {
+      if (!isFinite(sec) || sec < 0) sec = 0;
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = Math.floor(sec % 60);
+      const mm = h > 0 ? String(m).padStart(2, '0') : m;
+      const ss = String(s).padStart(2, '0');
+      return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+    }
+
+    function togglePlayPause() {
+      if (player.paused || player.ended) player.play();
+      else player.pause();
+    }
+
+    function flashCenterIcon(icon) {
+      centerPlayBtn.innerText = icon;
+      centerPlayBtn.classList.add('show');
+      clearTimeout(flashCenterIcon._t);
+      flashCenterIcon._t = setTimeout(() => centerPlayBtn.classList.remove('show'), 500);
+    }
+
+    function skip(seconds) {
+      player.currentTime = Math.min(Math.max(player.currentTime + seconds, 0), player.duration || Infinity);
+      const el = seconds < 0 ? skipFlashLeft : skipFlashRight;
+      el.classList.add('flash');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => el.classList.remove('flash'), 450);
+    }
+
+    function showControls() {
+      playerWrapper.classList.remove('controls-hidden');
+      clearTimeout(hideControlsTimer);
+      if (!player.paused) {
+        hideControlsTimer = setTimeout(() => {
+          playerWrapper.classList.add('controls-hidden');
+        }, 3000);
+      }
+    }
+
+    function updateSeekUI() {
+      if (isSeeking) return;
+      const pct = player.duration ? (player.currentTime / player.duration) * 100 : 0;
+      seekFill.style.width = pct + '%';
+      seekHandle.style.left = pct + '%';
+      timeDisplay.innerText = `${formatTime(player.currentTime)} / ${formatTime(player.duration)}`;
+
+      if (player.buffered.length > 0 && player.duration) {
+        const bufferedEnd = player.buffered.end(player.buffered.length - 1);
+        seekBuffered.style.width = Math.min(100, (bufferedEnd / player.duration) * 100) + '%';
+      }
+    }
+
+    function seekToClientX(clientX) {
+      const rect = seekBar.getBoundingClientRect();
+      const pct = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      if (player.duration) player.currentTime = pct * player.duration;
+      seekFill.style.width = (pct * 100) + '%';
+      seekHandle.style.left = (pct * 100) + '%';
+    }
+
+    // Play / Pause
+    playPauseBtn.addEventListener('click', (e) => { e.stopPropagation(); togglePlayPause(); });
+    player.addEventListener('play', () => {
+      playPauseBtn.innerText = '❚❚';
+      showControls();
+    });
+    player.addEventListener('pause', () => {
+      playPauseBtn.innerText = '▶';
+      flashCenterIcon('▶');
+      playerWrapper.classList.remove('controls-hidden');
+      clearTimeout(hideControlsTimer);
+    });
+
+    // Skip buttons
+    rewindBtn.addEventListener('click', (e) => { e.stopPropagation(); skip(-SKIP_SECONDS); });
+    forwardBtn.addEventListener('click', (e) => { e.stopPropagation(); skip(SKIP_SECONDS); });
+
+    // Click video area to toggle play/pause; double-click left/right thirds to skip
+    let clickTimer = null;
+    playerWrapper.addEventListener('click', (e) => {
+      if (e.target.closest('.custom-controls')) return;
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+        const rect = playerWrapper.getBoundingClientRect();
+        const relX = (e.clientX - rect.left) / rect.width;
+        if (relX < 0.4) skip(-SKIP_SECONDS);
+        else if (relX > 0.6) skip(SKIP_SECONDS);
+        else togglePlayPause();
+      } else {
+        clickTimer = setTimeout(() => {
+          togglePlayPause();
+          clickTimer = null;
+        }, 220);
+      }
+    });
+
+    // Seek bar interaction
+    seekBar.addEventListener('mousedown', (e) => {
+      isSeeking = true;
+      seekToClientX(e.clientX);
+      const onMove = (ev) => seekToClientX(ev.clientX);
+      const onUp = () => {
+        isSeeking = false;
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      e.stopPropagation();
+    });
+
+    player.addEventListener('timeupdate', updateSeekUI);
+    player.addEventListener('loadedmetadata', updateSeekUI);
+    player.addEventListener('progress', updateSeekUI);
+
+    // Volume
+    volumeSlider.addEventListener('input', (e) => {
+      player.volume = e.target.value;
+      player.muted = player.volume === 0;
+      muteBtn.innerText = player.muted ? '🔇' : '🔊';
+    });
+    muteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      player.muted = !player.muted;
+      muteBtn.innerText = player.muted ? '🔇' : '🔊';
+      if (!player.muted && player.volume === 0) {
+        player.volume = 1;
+        volumeSlider.value = 1;
+      }
+    });
+
+    // Fullscreen
+    fullscreenBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!document.fullscreenElement) playerWrapper.requestFullscreen();
+      else document.exitFullscreen();
+    });
+
+    // Auto-hide controls on mouse activity
+    playerWrapper.addEventListener('mousemove', showControls);
+    playerWrapper.addEventListener('mouseleave', () => {
+      if (!player.paused) playerWrapper.classList.add('controls-hidden');
+    });
+
+    // Keyboard shortcuts (only while player modal is open)
+    document.addEventListener('keydown', (e) => {
+      if (!videoModal.classList.contains('active')) return;
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          togglePlayPause();
+          showControls();
+          break;
+        case 'ArrowLeft':
+          skip(-SKIP_SECONDS);
+          showControls();
+          break;
+        case 'ArrowRight':
+          skip(SKIP_SECONDS);
+          showControls();
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          player.volume = Math.min(1, player.volume + 0.1);
+          volumeSlider.value = player.volume;
+          muteBtn.innerText = player.muted ? '🔇' : '🔊';
+          showControls();
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          player.volume = Math.max(0, player.volume - 0.1);
+          volumeSlider.value = player.volume;
+          showControls();
+          break;
+        case 'KeyM':
+          player.muted = !player.muted;
+          muteBtn.innerText = player.muted ? '🔇' : '🔊';
+          break;
+        case 'KeyF':
+          if (!document.fullscreenElement) playerWrapper.requestFullscreen();
+          else document.exitFullscreen();
+          break;
+      }
+    });
+
+    fetchProfiles().then(() => {
+      if (currentProfile) {
+        document.getElementById('currentAvatar').src = currentProfile.avatar;
+        document.getElementById('currentName').innerText = currentProfile.name;
+        loadMovies();
+      } else {
+        showProfilePicker();
+      }
+    });
+  </script>
+</body>
+</html>
